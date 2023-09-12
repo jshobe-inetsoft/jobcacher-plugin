@@ -1,9 +1,7 @@
 package jenkins.plugins.itemstorage.s3;
 
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.*;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -23,6 +21,7 @@ public class ClientHelper implements Serializable {
 
     private final String accessKey;
     private final String secretKey;
+    private final String sessionToken;
     private final String region;
     private final ProxyConfiguration proxy;
     private final String endpoint;
@@ -52,9 +51,16 @@ public class ClientHelper implements Serializable {
         if (credentials != null) {
             this.accessKey = credentials.getAWSAccessKeyId();
             this.secretKey = credentials.getAWSSecretKey();
+
+            if (credentials instanceof AWSSessionCredentials) {
+                this.sessionToken = ((AWSSessionCredentials) credentials).getSessionToken();
+            } else {
+                this.sessionToken = null;
+            }
         } else {
             this.accessKey = null;
             this.secretKey = null;
+            this.sessionToken = null;
         }
     }
 
@@ -112,7 +118,11 @@ public class ClientHelper implements Serializable {
 
     public synchronized AWSCredentials getCredentials() {
         if (credentials == null && accessKey != null && secretKey != null) {
-            credentials = new BasicAWSCredentials(accessKey, secretKey);
+            if (sessionToken == null) {
+                credentials = new BasicAWSCredentials(accessKey, secretKey);
+            } else {
+                credentials = new BasicSessionCredentials(accessKey, secretKey, sessionToken);
+            }
         }
         return credentials;
     }
